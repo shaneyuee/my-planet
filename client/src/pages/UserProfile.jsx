@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
@@ -7,6 +7,7 @@ import PostCard from '../components/PostCard';
 export default function UserProfile() {
   const { id } = useParams();
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -98,17 +99,25 @@ export default function UserProfile() {
           </div>
         </div>
         {currentUser && !isSelf && (
-          <button
-            onClick={handleFollow}
-            disabled={followLoading}
-            className={`px-4 py-1.5 text-sm rounded-full transition-colors ${
-              isFollowing
-                ? 'border border-gray-300 text-gray-600 hover:border-red-300 hover:text-red-500'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700'
-            } disabled:opacity-50`}
-          >
-            {isFollowing ? '已关注' : '关注'}
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleFollow}
+              disabled={followLoading}
+              className={`px-4 py-1.5 text-sm rounded-full transition-colors ${
+                isFollowing
+                  ? 'border border-gray-300 text-gray-600 hover:border-red-300 hover:text-red-500'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              } disabled:opacity-50`}
+            >
+              {isFollowing ? '已关注' : '关注'}
+            </button>
+            <button
+              onClick={() => navigate(`/messages/conversation/${id}`)}
+              className="px-4 py-1.5 text-sm rounded-full border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors"
+            >
+              发消息
+            </button>
+          </div>
         )}
       </div>
 

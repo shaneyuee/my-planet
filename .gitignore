@@ -1,7 +1,10 @@
 node_modules/
 dist/
 server/data.db
+server/data.db-shm
+server/data.db-wal
 server/uploads/*
 !server/uploads/.gitkeep
 .env
 *.log
+.claude/settings.local.json

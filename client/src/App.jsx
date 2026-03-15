@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Navbar from './components/Navbar';
 
 // Lazy-load pages – they may not exist yet, so we use inline fallbacks
@@ -16,6 +17,8 @@ const Circles = lazy(() => import('./pages/Circle'));
 const CircleDetail = lazy(() => import('./pages/CircleDetail'));
 const JoinCircle = lazy(() => import('./pages/CircleJoin'));
 const Admin = lazy(() => import('./pages/Admin'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Conversation = lazy(() => import('./pages/Conversation'));
 
 function Loading() {
   return (
@@ -97,6 +100,22 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <Messages />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages/conversation/:userId"
+          element={
+            <ProtectedRoute>
+              <Conversation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin"
           element={
             <AdminRoute>
@@ -115,12 +134,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Navbar />
-          <main className="max-w-5xl mx-auto px-4 py-6 pb-20 md:pb-6">
-            <AppRoutes />
-          </main>
-        </div>
+        <NotificationProvider>
+          <div className="min-h-screen bg-gray-50">
+            <Navbar />
+            <main className="max-w-5xl mx-auto px-4 py-6 pb-20 md:pb-6">
+              <AppRoutes />
+            </main>
+          </div>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

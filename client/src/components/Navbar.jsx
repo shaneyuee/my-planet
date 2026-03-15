@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 const IconHome = ({ active }) => (
   <svg className="w-5 h-5" fill={active ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -16,6 +17,11 @@ const IconCircle = ({ active }) => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
   </svg>
 );
+const IconMessage = ({ active }) => (
+  <svg className="w-5 h-5" fill={active ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+  </svg>
+);
 const IconProfile = ({ active }) => (
   <svg className="w-5 h-5" fill={active ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -28,11 +34,33 @@ const IconAdmin = ({ active }) => (
   </svg>
 );
 
+function Badge({ count }) {
+  if (!count || count <= 0) return null;
+  const display = count > 99 ? '99+' : count;
+  return (
+    <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-medium rounded-full flex items-center justify-center px-1 leading-none">
+      {display}
+    </span>
+  );
+}
+
+function InlineBadge({ count }) {
+  if (!count || count <= 0) return null;
+  const display = count > 99 ? '99+' : count;
+  return (
+    <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-medium rounded-full px-1 leading-none">
+      {display}
+    </span>
+  );
+}
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
+  const notification = useNotification();
+  const totalUnread = notification?.totalUnread || 0;
 
   const handleLogout = () => {
     logout();
@@ -43,6 +71,7 @@ export default function Navbar() {
     { to: '/', label: '广场', icon: IconHome, match: (p) => p === '/' },
     { to: '/create', label: '创作', icon: IconCreate, match: (p) => p === '/create' },
     { to: '/circles', label: '私密圈', icon: IconCircle, match: (p) => p.startsWith('/circles') },
+    { to: '/messages', label: '消息', icon: IconMessage, match: (p) => p.startsWith('/messages'), badge: totalUnread },
     { to: '/profile', label: '我的', icon: IconProfile, match: (p) => p === '/profile' || p === '/settings' },
   ];
 
@@ -67,9 +96,10 @@ export default function Navbar() {
                 <Link
                   key={tab.to}
                   to={tab.to}
-                  className={`text-sm font-medium transition-colors ${active ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}
+                  className={`text-sm font-medium transition-colors flex items-center ${active ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}
                 >
                   {tab.label}
+                  {tab.badge > 0 && <InlineBadge count={tab.badge} />}
                 </Link>
               );
             })}
@@ -108,7 +138,10 @@ export default function Navbar() {
                 to={tab.to}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${active ? 'text-indigo-600' : 'text-gray-400'}`}
               >
-                <Icon active={active} />
+                <span className="relative">
+                  <Icon active={active} />
+                  {tab.badge > 0 && <Badge count={tab.badge} />}
+                </span>
                 <span className="text-[10px] mt-0.5">{tab.label}</span>
               </Link>
             );
