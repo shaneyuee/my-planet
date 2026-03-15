@@ -65,9 +65,9 @@ router.post('/', authMiddleware, (req, res, next) => {
   res.json(post);
 });
 
-// Repo info for code type posts
+// Repo info for code type posts (client-first fetch + server cache)
 router.post('/repo-info', authMiddleware, async (req, res) => {
-  const { url } = req.body;
+  const { url, rawData } = req.body;
   if (!url) return res.status(400).json({ error: '缺少URL' });
 
   const ghMatch = url.match(/github\.com\/([^/]+)\/([^/\s?#]+)/);
@@ -80,44 +80,55 @@ router.post('/repo-info', authMiddleware, async (req, res) => {
   }
 
   const owner = match[1];
-  const repo = match[2].replace(/\.git$/, '');
+  const repoName = match[2].replace(/\.git$/, '');
+  const cacheKey = `${platform}/${owner}/${repoName}`;
 
-  try {
-    let apiUrl, data;
-    if (platform === 'github') {
-      apiUrl = `https://api.github.com/repos/${owner}/${repo}`;
-      const resp = await fetch(apiUrl, { headers: { 'User-Agent': 'MyPlanet' } });
-      if (!resp.ok) throw new Error('仓库不存在或无法访问');
-      data = await resp.json();
-      res.json({
-        platform, owner, repo: data.name,
-        description: data.description || '',
-        avatar: data.owner?.avatar_url || '',
-        stars: data.stargazers_count || 0,
-        forks: data.forks_count || 0,
-        watchers: data.watchers_count || 0,
-        lastCommit: data.pushed_at || data.updated_at || '',
-        url: data.html_url,
-      });
-    } else {
-      apiUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}`;
-      const resp = await fetch(apiUrl);
-      if (!resp.ok) throw new Error('仓库不存在或无法访问');
-      data = await resp.json();
-      res.json({
-        platform, owner, repo: data.name,
-        description: data.description || '',
-        avatar: data.owner?.avatar_url || '',
-        stars: data.stargazers_count || 0,
-        forks: data.forks_count || 0,
-        watchers: data.watchers_count || 0,
-        lastCommit: data.pushed_at || data.updated_at || '',
-        url: data.html_url,
-      });
-    }
-  } catch (err) {
-    res.status(400).json({ error: err.message || '获取仓库信息失败' });
+  const parseRepoData = (data) => ({
+    platform, owner, repo: data.name || repoName,
+    description: data.description || '',
+    avatar: data.owner?.avatar_url || '',
+    stars: data.stargazers_count || 0,
+    forks: data.forks_count || 0,
+    watchers: data.watchers_count || 0,
+    lastCommit: data.pushed_at || data.updated_at || '',
+    url: data.html_url || url,
+  });
+
+  const cacheResult = (result) => {
+    db.prepare('INSERT OR REPLACE INTO repo_cache (url, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)')
+      .run(cacheKey, JSON.stringify(result));
+  };
+
+  // 1. Client provided rawData
+  if (rawData) {
+    try {
+      const result = parseRepoData(rawData);
+      cacheResult(result);
+      return res.json(result);
+    } catch {}
   }
+
+  // 2. Server-side fetch
+  try {
+    const apiUrl = platform === 'github'
+      ? `https://api.github.com/repos/${owner}/${repoName}`
+      : `https://gitee.com/api/v5/repos/${owner}/${repoName}`;
+    const headers = platform === 'github' ? { 'User-Agent': 'MyPlanet' } : {};
+    const resp = await fetch(apiUrl, { headers, signal: AbortSignal.timeout(10000) });
+    if (!resp.ok) throw new Error('fetch failed');
+    const data = await resp.json();
+    const result = parseRepoData(data);
+    cacheResult(result);
+    return res.json(result);
+  } catch {}
+
+  // 3. Fall back to cache
+  const cached = db.prepare('SELECT data FROM repo_cache WHERE url = ?').get(cacheKey);
+  if (cached) {
+    return res.json(JSON.parse(cached.data));
+  }
+
+  res.status(400).json({ error: '获取仓库信息失败，请稍后重试' });
 });
 
 // Link preview

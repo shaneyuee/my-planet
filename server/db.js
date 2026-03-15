@@ -182,6 +182,15 @@ try { db.exec('ALTER TABLE users ADD COLUMN last_login DATETIME'); } catch {}
 // Add media_meta column if not exists
 try { db.exec("ALTER TABLE posts ADD COLUMN media_meta TEXT DEFAULT ''"); } catch {}
 
+// Repo info cache table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS repo_cache (
+    url TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // Seed admin user if not exists (password: admin123)
 import bcrypt from 'bcryptjs';
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');

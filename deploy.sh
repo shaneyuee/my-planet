@@ -47,10 +47,16 @@ else
   echo "无旧镜像"
 fi
 
-echo "--- 解压项目文件 ---"
+echo "--- 解压项目文件（保留 data 和 uploads）---"
+mkdir -p "$REMOTE_DIR"
+[ -d "$REMOTE_DIR/data" ] && mv "$REMOTE_DIR/data" /tmp/_ps_data_bak
+[ -d "$REMOTE_DIR/uploads" ] && mv "$REMOTE_DIR/uploads" /tmp/_ps_uploads_bak
 rm -rf "$REMOTE_DIR"
 mkdir -p "$REMOTE_DIR"
 tar xzf "$TARBALL" -C "$REMOTE_DIR"
+[ -d /tmp/_ps_data_bak ] && rm -rf "$REMOTE_DIR/data" && mv /tmp/_ps_data_bak "$REMOTE_DIR/data"
+[ -d /tmp/_ps_uploads_bak ] && rm -rf "$REMOTE_DIR/uploads" && mv /tmp/_ps_uploads_bak "$REMOTE_DIR/uploads"
+mkdir -p "$REMOTE_DIR/data" "$REMOTE_DIR/uploads"
 
 echo "--- 构建 Docker 镜像 ---"
 cd "$REMOTE_DIR"

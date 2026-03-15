@@ -40,7 +40,17 @@ export const api = {
   // Posts
   createPost: (formData) => request('/posts', { method: 'POST', body: formData }),
   linkPreview: (url) => request('/posts/link-preview', { method: 'POST', body: JSON.stringify({ url }) }),
-  repoInfo: (url) => request('/posts/repo-info', { method: 'POST', body: JSON.stringify({ url }) }),
+  repoInfo: (url, rawData) => request('/posts/repo-info', { method: 'POST', body: JSON.stringify({ url, rawData }) }),
+  fetchGitHubRepo: async (owner, repo) => {
+    const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+    if (!resp.ok) throw new Error('fetch failed');
+    return resp.json();
+  },
+  fetchGiteeRepo: async (owner, repo) => {
+    const resp = await fetch(`https://gitee.com/api/v5/repos/${owner}/${repo}`);
+    if (!resp.ok) throw new Error('fetch failed');
+    return resp.json();
+  },
   getPlaza: (page = 1, { sort, type, tag, following } = {}) => {
     const params = new URLSearchParams({ page });
     if (sort) params.set('sort', sort);

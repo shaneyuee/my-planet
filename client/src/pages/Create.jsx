@@ -63,10 +63,26 @@ export default function Create() {
     if (!link.trim()) return;
     setRepoLoading(true);
     try {
-      const data = await api.repoInfo(link);
+      const ghMatch = link.match(/github\.com\/([^/]+)\/([^/\s?#]+)/);
+      const gtMatch = link.match(/gitee\.com\/([^/]+)\/([^/\s?#]+)/);
+      const match = ghMatch || gtMatch;
+      if (!match) {
+        alert('仅支持 GitHub 和 Gitee 仓库地址');
+        setRepoLoading(false);
+        return;
+      }
+      const owner = match[1];
+      const repo = match[2].replace(/\.git$/, '');
+      let rawData = null;
+      try {
+        rawData = ghMatch
+          ? await api.fetchGitHubRepo(owner, repo)
+          : await api.fetchGiteeRepo(owner, repo);
+      } catch {}
+      const data = await api.repoInfo(link, rawData);
       setMediaMeta(data);
     } catch (err) {
-      alert(err.message || '仅支持 GitHub 和 Gitee 仓库地址');
+      alert(err.message || '获取仓库信息失败');
     } finally {
       setRepoLoading(false);
     }

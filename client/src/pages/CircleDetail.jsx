@@ -260,7 +260,10 @@ export default function CircleDetail() {
           ) : (
             <div className="space-y-4">
               {posts.map((post) => (
-                <PostCard key={post.id} post={post} circleId={id} />
+                <PostCard key={post.id} post={post} circleId={id}
+                  onDelete={(pid) => setPosts((prev) => prev.filter((p) => p.id !== pid))}
+                  onHide={(pid) => setPosts((prev) => prev.filter((p) => p.id !== pid))}
+                />
               ))}
             </div>
           )}
