@@ -4,6 +4,9 @@ import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import CommentSection from './CommentSection';
 import MarkdownRenderer from './MarkdownRenderer';
+import VideoPlayer from './VideoPlayer';
+import AudioPlayer from './AudioPlayer';
+import RepoCard from './RepoCard';
 
 function timeAgo(dateStr) {
   const now = Date.now();
@@ -156,6 +159,30 @@ export default function PostCard({ post, onDelete, onHide, circleId, showActions
         </div>
       )}
 
+      {/* Type-specific media */}
+      {post.type === 'video' && post.link && (
+        <div className="mb-3">
+          <VideoPlayer url={post.link} poster={post.link_image} />
+        </div>
+      )}
+      {post.type === 'audio' && post.link && (
+        <div className="mb-3">
+          <AudioPlayer url={post.link} title={post.link_title || '音频'} />
+        </div>
+      )}
+      {post.type === 'code' && post.media_meta && (
+        <div className="mb-3">
+          {(() => {
+            try {
+              const info = typeof post.media_meta === 'string' ? JSON.parse(post.media_meta) : post.media_meta;
+              return <RepoCard repoInfo={info} />;
+            } catch {
+              return <RepoCard repoInfo={null} />;
+            }
+          })()}
+        </div>
+      )}
+
       {/* Images */}
       {images.length > 0 && (
         <div
@@ -179,8 +206,8 @@ export default function PostCard({ post, onDelete, onHide, circleId, showActions
         </div>
       )}
 
-      {/* Link preview */}
-      {post.link_title && (
+      {/* Link preview (only for image_text type) */}
+      {post.type !== 'video' && post.type !== 'audio' && post.type !== 'code' && post.link_title && (
         <a
           href={post.link_url}
           target="_blank"

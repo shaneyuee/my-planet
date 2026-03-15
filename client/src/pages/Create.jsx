@@ -5,6 +5,9 @@ import { api } from '../api';
 import MentionInput from '../components/MentionInput';
 import MarkdownToolbar from '../components/MarkdownToolbar';
 import MarkdownRenderer from '../components/MarkdownRenderer';
+import VideoPlayer from '../components/VideoPlayer';
+import AudioPlayer from '../components/AudioPlayer';
+import RepoCard from '../components/RepoCard';
 
 const POST_TYPES = [
   { key: 'video', label: '视频' },
@@ -31,6 +34,8 @@ export default function Create() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [mediaMeta, setMediaMeta] = useState(null);
+  const [repoLoading, setRepoLoading] = useState(false);
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -51,6 +56,19 @@ export default function Create() {
       alert('抓取失败: ' + err.message);
     } finally {
       setLinkLoading(false);
+    }
+  };
+
+  const handleFetchRepo = async () => {
+    if (!link.trim()) return;
+    setRepoLoading(true);
+    try {
+      const data = await api.repoInfo(link);
+      setMediaMeta(data);
+    } catch (err) {
+      alert(err.message || '仅支持 GitHub 和 Gitee 仓库地址');
+    } finally {
+      setRepoLoading(false);
     }
   };
 
@@ -107,6 +125,7 @@ export default function Create() {
       fd.append('content', content);
       if (link.trim()) fd.append('link', link);
       if (tags.length > 0) fd.append('tags', JSON.stringify(tags));
+      if (mediaMeta) fd.append('media_meta', JSON.stringify(mediaMeta));
 
       const visArr = [];
       if (visibility.plaza) visArr.push('plaza');
@@ -207,36 +226,104 @@ export default function Create() {
           )}
         </div>
 
-        {/* Link */}
+        {/* Link / Media URL area — varies by type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">链接</label>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="https://..."
-            />
-            <button
-              type="button"
-              onClick={handleLinkPreview}
-              disabled={linkLoading || !link.trim()}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {linkLoading ? '抓取中...' : '抓取预览'}
-            </button>
-          </div>
-          {linkPreview && (
-            <div className="mt-2 p-3 bg-gray-50 rounded-lg border text-sm">
-              {linkPreview.title && <p className="font-medium">{linkPreview.title}</p>}
-              {linkPreview.description && (
-                <p className="text-gray-500 mt-1">{linkPreview.description}</p>
+          {type === 'image_text' && (
+            <>
+              <label className="block text-sm font-medium text-gray-700 mb-2">链接</label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://..."
+                />
+                <button
+                  type="button"
+                  onClick={handleLinkPreview}
+                  disabled={linkLoading || !link.trim()}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {linkLoading ? '抓取中...' : '抓取预览'}
+                </button>
+              </div>
+              {linkPreview && (
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg border text-sm">
+                  {linkPreview.title && <p className="font-medium">{linkPreview.title}</p>}
+                  {linkPreview.description && (
+                    <p className="text-gray-500 mt-1">{linkPreview.description}</p>
+                  )}
+                  {linkPreview.image && (
+                    <img src={linkPreview.image} alt="" className="mt-2 max-h-32 rounded" />
+                  )}
+                </div>
               )}
-              {linkPreview.image && (
-                <img src={linkPreview.image} alt="" className="mt-2 max-h-32 rounded" />
+            </>
+          )}
+
+          {type === 'video' && (
+            <>
+              <label className="block text-sm font-medium text-gray-700 mb-2">视频地址</label>
+              <input
+                type="url"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="粘贴视频地址..."
+              />
+              {link.trim() && (
+                <div className="mt-2">
+                  <VideoPlayer url={link} />
+                </div>
               )}
-            </div>
+            </>
+          )}
+
+          {type === 'audio' && (
+            <>
+              <label className="block text-sm font-medium text-gray-700 mb-2">音频地址</label>
+              <input
+                type="url"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="粘贴音频地址..."
+              />
+              {link.trim() && (
+                <div className="mt-2">
+                  <AudioPlayer url={link} title="音频预览" />
+                </div>
+              )}
+            </>
+          )}
+
+          {type === 'code' && (
+            <>
+              <label className="block text-sm font-medium text-gray-700 mb-2">仓库地址</label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="粘贴 GitHub/Gitee 仓库地址..."
+                />
+                <button
+                  type="button"
+                  onClick={handleFetchRepo}
+                  disabled={repoLoading || !link.trim()}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {repoLoading ? '抓取中...' : '抓取仓库'}
+                </button>
+              </div>
+              {mediaMeta && (
+                <div className="mt-2">
+                  <RepoCard repoInfo={mediaMeta} />
+                </div>
+              )}
+            </>
           )}
         </div>
 

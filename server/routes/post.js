@@ -30,7 +30,7 @@ router.post('/', authMiddleware, (req, res, next) => {
     next();
   });
 }, (req, res) => {
-  const { type, content, link, tags, visibility, circle_ids } = req.body;
+  const { type, content, link, tags, visibility, circle_ids, media_meta } = req.body;
   const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
   if (parsedTags.length > 10) return res.status(400).json({ error: '最多10个标签' });
 
@@ -39,9 +39,9 @@ router.post('/', authMiddleware, (req, res, next) => {
   const plazaStatus = visibilityStr.includes('plaza') ? 'pending' : null;
 
   const result = db.prepare(`
-    INSERT INTO posts (user_id, type, content, link, images, tags, visibility, plaza_status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(req.user.id, type || 'image_text', content || '', link || '', JSON.stringify(images), JSON.stringify(parsedTags), visibilityStr, plazaStatus);
+    INSERT INTO posts (user_id, type, content, link, images, tags, visibility, plaza_status, media_meta)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(req.user.id, type || 'image_text', content || '', link || '', JSON.stringify(images), JSON.stringify(parsedTags), visibilityStr, plazaStatus, media_meta || '');
 
   const postId = result.lastInsertRowid;
 
@@ -63,6 +63,61 @@ router.post('/', authMiddleware, (req, res, next) => {
   }
 
   res.json(post);
+});
+
+// Repo info for code type posts
+router.post('/repo-info', authMiddleware, async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: '缺少URL' });
+
+  const ghMatch = url.match(/github\.com\/([^/]+)\/([^/\s?#]+)/);
+  const gtMatch = url.match(/gitee\.com\/([^/]+)\/([^/\s?#]+)/);
+  const match = ghMatch || gtMatch;
+  const platform = ghMatch ? 'github' : gtMatch ? 'gitee' : null;
+
+  if (!match || !platform) {
+    return res.status(400).json({ error: '仅支持 GitHub 和 Gitee 仓库地址' });
+  }
+
+  const owner = match[1];
+  const repo = match[2].replace(/\.git$/, '');
+
+  try {
+    let apiUrl, data;
+    if (platform === 'github') {
+      apiUrl = `https://api.github.com/repos/${owner}/${repo}`;
+      const resp = await fetch(apiUrl, { headers: { 'User-Agent': 'MyPlanet' } });
+      if (!resp.ok) throw new Error('仓库不存在或无法访问');
+      data = await resp.json();
+      res.json({
+        platform, owner, repo: data.name,
+        description: data.description || '',
+        avatar: data.owner?.avatar_url || '',
+        stars: data.stargazers_count || 0,
+        forks: data.forks_count || 0,
+        watchers: data.watchers_count || 0,
+        lastCommit: data.pushed_at || data.updated_at || '',
+        url: data.html_url,
+      });
+    } else {
+      apiUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}`;
+      const resp = await fetch(apiUrl);
+      if (!resp.ok) throw new Error('仓库不存在或无法访问');
+      data = await resp.json();
+      res.json({
+        platform, owner, repo: data.name,
+        description: data.description || '',
+        avatar: data.owner?.avatar_url || '',
+        stars: data.stargazers_count || 0,
+        forks: data.forks_count || 0,
+        watchers: data.watchers_count || 0,
+        lastCommit: data.pushed_at || data.updated_at || '',
+        url: data.html_url,
+      });
+    }
+  } catch (err) {
+    res.status(400).json({ error: err.message || '获取仓库信息失败' });
+  }
 });
 
 // Link preview

@@ -40,6 +40,7 @@ export const api = {
   // Posts
   createPost: (formData) => request('/posts', { method: 'POST', body: formData }),
   linkPreview: (url) => request('/posts/link-preview', { method: 'POST', body: JSON.stringify({ url }) }),
+  repoInfo: (url) => request('/posts/repo-info', { method: 'POST', body: JSON.stringify({ url }) }),
   getPlaza: (page = 1, { sort, type, tag, following } = {}) => {
     const params = new URLSearchParams({ page });
     if (sort) params.set('sort', sort);
