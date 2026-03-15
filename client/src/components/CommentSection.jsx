@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
+import MarkdownRenderer from './MarkdownRenderer';
+import MentionInput from './MentionInput';
 
 function timeAgo(dateStr) {
   const now = Date.now();
@@ -73,7 +75,7 @@ function CommentItem({ comment, postId, circleId, onReply, depth = 0 }) {
             )}
             <span className="text-xs text-gray-400">{timeAgo(comment.created_at)}</span>
           </div>
-          <p className="text-sm text-gray-800 leading-relaxed">{comment.content}</p>
+          <MarkdownRenderer content={comment.content} className="text-sm text-gray-800 leading-relaxed" />
           <div className="flex items-center gap-4 mt-1">
             <button
               onClick={handleLike}
@@ -243,12 +245,12 @@ export default function CommentSection({ postId, circleId }) {
             </div>
           )}
           <div className="flex gap-2">
-            <input
-              type="text"
+            <MentionInput
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={setContent}
               placeholder={replyTo ? `回复 ${replyTo.nickname || replyTo.username}...` : '写下你的评论...'}
-              className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              rows={1}
+              className="flex-1 !rounded-md text-sm !ring-1 !ring-indigo-400 !ring-opacity-0 focus-within:!ring-opacity-100"
             />
             <button
               type="submit"

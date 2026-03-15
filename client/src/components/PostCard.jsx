@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import CommentSection from './CommentSection';
+import MarkdownRenderer from './MarkdownRenderer';
 
 function timeAgo(dateStr) {
   const now = Date.now();
@@ -143,9 +144,16 @@ export default function PostCard({ post, onDelete, onHide, circleId, showActions
 
       {/* Content */}
       {post.content && (
-        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap mb-3">
-          {post.content}
-        </p>
+        <div className="text-gray-800 text-sm leading-relaxed mb-3">
+          {post.highlighted_content ? (
+            <div
+              className="markdown-content whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{ __html: post.highlighted_content }}
+            />
+          ) : (
+            <MarkdownRenderer content={post.content} />
+          )}
+        </div>
       )}
 
       {/* Images */}

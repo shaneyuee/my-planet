@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import db from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { optionalAuthMiddleware } from '../middleware/auth.js';
+import { extractMentionedUserIds, createMentionNotifications } from '../utils/mentions.js';
 import { fetchLinkPreview } from '../utils/linkPreview.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -54,6 +55,13 @@ router.post('/', authMiddleware, (req, res, next) => {
   }
 
   const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(postId);
+
+  // Create mention notifications
+  const mentionedIds = extractMentionedUserIds(content || '');
+  if (mentionedIds.length > 0) {
+    createMentionNotifications(mentionedIds, req.user.id, 'post', postId);
+  }
+
   res.json(post);
 });
 

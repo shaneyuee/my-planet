@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { extractMentionedUserIds, createMentionNotifications } from '../utils/mentions.js';
 
 const router = Router();
 
@@ -37,6 +38,39 @@ router.post('/', authMiddleware, (req, res) => {
     SELECT c.*, u.nickname, u.avatar FROM comments c
     JOIN users u ON u.id = c.user_id WHERE c.id = ?
   `).get(result.lastInsertRowid);
+
+  // Notification: reply to comment
+  if (parent_id) {
+    const parentComment = db.prepare('SELECT user_id FROM comments WHERE id = ?').get(parent_id);
+    if (parentComment && parentComment.user_id !== req.user.id) {
+      db.prepare(
+        "INSERT INTO notifications (recipient_id, actor_id, type, target_type, target_id, content) VALUES (?, ?, 'reply', 'comment', ?, ?)"
+      ).run(parentComment.user_id, req.user.id, post_id, content.slice(0, 50));
+    }
+  } else {
+    // Notification: comment on post
+    const post = db.prepare('SELECT user_id FROM posts WHERE id = ?').get(post_id);
+    if (post && post.user_id !== req.user.id) {
+      db.prepare(
+        "INSERT INTO notifications (recipient_id, actor_id, type, target_type, target_id, content) VALUES (?, ?, 'comment', 'post', ?, ?)"
+      ).run(post.user_id, req.user.id, post_id, content.slice(0, 50));
+    }
+  }
+
+  // Mention notifications (exclude users already notified by reply/comment above)
+  const mentionedIds = extractMentionedUserIds(content);
+  if (mentionedIds.length > 0) {
+    const excludeIds = [];
+    if (parent_id) {
+      const pc = db.prepare('SELECT user_id FROM comments WHERE id = ?').get(parent_id);
+      if (pc) excludeIds.push(pc.user_id);
+    } else {
+      const p = db.prepare('SELECT user_id FROM posts WHERE id = ?').get(post_id);
+      if (p) excludeIds.push(p.user_id);
+    }
+    createMentionNotifications(mentionedIds, req.user.id, 'post', post_id, excludeIds);
+  }
+
   res.json(comment);
 });
 
@@ -49,6 +83,24 @@ router.post('/like', authMiddleware, (req, res) => {
     return res.json({ liked: false });
   }
   db.prepare('INSERT INTO likes (user_id, target_type, target_id, circle_id) VALUES (?, ?, ?, ?)').run(req.user.id, target_type, target_id, circle_id || null);
+
+  // Notification for like
+  if (target_type === 'post') {
+    const post = db.prepare('SELECT user_id FROM posts WHERE id = ?').get(target_id);
+    if (post && post.user_id !== req.user.id) {
+      db.prepare(
+        "INSERT INTO notifications (recipient_id, actor_id, type, target_type, target_id) VALUES (?, ?, 'like_post', 'post', ?)"
+      ).run(post.user_id, req.user.id, target_id);
+    }
+  } else if (target_type === 'comment') {
+    const comment = db.prepare('SELECT user_id FROM comments WHERE id = ?').get(target_id);
+    if (comment && comment.user_id !== req.user.id) {
+      db.prepare(
+        "INSERT INTO notifications (recipient_id, actor_id, type, target_type, target_id) VALUES (?, ?, 'like_comment', 'comment', ?)"
+      ).run(comment.user_id, req.user.id, target_id);
+    }
+  }
+
   res.json({ liked: true });
 });
 

@@ -112,7 +112,69 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(follower_id, following_id)
   );
+
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipient_id INTEGER NOT NULL REFERENCES users(id),
+    actor_id INTEGER NOT NULL REFERENCES users(id),
+    type TEXT NOT NULL,
+    target_type TEXT,
+    target_id INTEGER,
+    content TEXT DEFAULT '',
+    is_read INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_notif_recipient ON notifications(recipient_id, is_read, created_at);
+
+  CREATE TABLE IF NOT EXISTS direct_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id INTEGER NOT NULL REFERENCES users(id),
+    recipient_id INTEGER NOT NULL REFERENCES users(id),
+    content TEXT NOT NULL,
+    is_read INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_dm_conversation ON direct_messages(sender_id, recipient_id, created_at);
 `);
+
+// FTS5 full-text search tables
+db.exec(`
+  CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(content, tags, content_rowid=id, tokenize='unicode61');
+  CREATE VIRTUAL TABLE IF NOT EXISTS comments_fts USING fts5(content, content_rowid=id, tokenize='unicode61');
+`);
+
+// Triggers to sync FTS tables with source tables
+db.exec(`
+  CREATE TRIGGER IF NOT EXISTS posts_ai AFTER INSERT ON posts BEGIN
+    INSERT INTO posts_fts(rowid, content, tags) VALUES (NEW.id, NEW.content, NEW.tags);
+  END;
+  CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE OF content, tags ON posts BEGIN
+    UPDATE posts_fts SET content = NEW.content, tags = NEW.tags WHERE rowid = NEW.id;
+  END;
+  CREATE TRIGGER IF NOT EXISTS posts_ad AFTER DELETE ON posts BEGIN
+    DELETE FROM posts_fts WHERE rowid = OLD.id;
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS comments_ai AFTER INSERT ON comments BEGIN
+    INSERT INTO comments_fts(rowid, content) VALUES (NEW.id, NEW.content);
+  END;
+  CREATE TRIGGER IF NOT EXISTS comments_au AFTER UPDATE OF content ON comments BEGIN
+    UPDATE comments_fts SET content = NEW.content WHERE rowid = NEW.id;
+  END;
+  CREATE TRIGGER IF NOT EXISTS comments_ad AFTER DELETE ON comments BEGIN
+    DELETE FROM comments_fts WHERE rowid = OLD.id;
+  END;
+`);
+
+// Rebuild FTS index with existing data
+try {
+  const postCount = db.prepare('SELECT COUNT(*) as c FROM posts_fts').get().c;
+  const realPostCount = db.prepare('SELECT COUNT(*) as c FROM posts').get().c;
+  if (postCount === 0 && realPostCount > 0) {
+    db.exec(`INSERT INTO posts_fts(rowid, content, tags) SELECT id, content, tags FROM posts`);
+    db.exec(`INSERT INTO comments_fts(rowid, content) SELECT id, content FROM comments`);
+  }
+} catch {}
 
 // Add last_login column if not exists
 try { db.exec('ALTER TABLE users ADD COLUMN last_login DATETIME'); } catch {}

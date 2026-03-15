@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
+import MentionInput from '../components/MentionInput';
+import MarkdownToolbar from '../components/MarkdownToolbar';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 
 const POST_TYPES = [
   { key: 'video', label: '视频' },
@@ -27,6 +30,8 @@ export default function Create() {
   const [selectedCircle, setSelectedCircle] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [previewMode, setPreviewMode] = useState(false);
+  const contentRef = useRef(null);
 
   useEffect(() => {
     if (visibility.private) {
@@ -163,13 +168,43 @@ export default function Create() {
         {/* Content */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">内容</label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={6}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-            placeholder="写点什么..."
-          />
+          <div className="flex gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setPreviewMode(false)}
+              className={`px-3 py-1 text-xs rounded transition-colors ${!previewMode ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+            >
+              编辑
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewMode(true)}
+              className={`px-3 py-1 text-xs rounded transition-colors ${previewMode ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+            >
+              预览
+            </button>
+          </div>
+          {previewMode ? (
+            <div className="w-full border border-gray-300 rounded-lg px-3 py-2 min-h-[150px] bg-white">
+              {content ? (
+                <MarkdownRenderer content={content} />
+              ) : (
+                <p className="text-gray-400 text-sm">暂无内容</p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <MarkdownToolbar textareaRef={contentRef} value={content} onChange={setContent} />
+              <MentionInput
+                ref={contentRef}
+                value={content}
+                onChange={setContent}
+                rows={6}
+                placeholder="写点什么...  支持 Markdown 语法，输入 @ 可以提及用户"
+                className="!rounded-t-none !border-t-0"
+              />
+            </div>
+          )}
         </div>
 
         {/* Link */}

@@ -19,6 +19,9 @@ import postRoutes from './routes/post.js';
 import circleRoutes from './routes/circle.js';
 import commentRoutes from './routes/comment.js';
 import adminRoutes from './routes/admin.js';
+import notificationRoutes from './routes/notifications.js';
+import messageRoutes from './routes/messages.js';
+import searchRoutes from './routes/search.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,6 +42,9 @@ app.use('/api/posts', postRoutes);
 app.use('/api/circles', circleRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/search', searchRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {

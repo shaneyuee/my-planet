@@ -20,6 +20,20 @@ const upload = multer({
 
 const router = Router();
 
+// Search users by nickname/username prefix (for @mention)
+router.get('/search', authMiddleware, (req, res) => {
+  const { q } = req.query;
+  if (!q || !q.trim()) return res.json([]);
+  const term = q.trim() + '%';
+  const users = db.prepare(`
+    SELECT id, username, nickname, avatar
+    FROM users
+    WHERE status = 'approved' AND (nickname LIKE ? OR username LIKE ?)
+    LIMIT 10
+  `).all(term, term);
+  res.json(users);
+});
+
 router.get('/me', authMiddleware, (req, res) => {
   const user = db.prepare('SELECT id, username, nickname, avatar, bio, role, status, created_at FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: '用户不存在' });
@@ -74,6 +88,12 @@ router.post('/:id/follow', authMiddleware, (req, res) => {
     return res.json({ following: false });
   }
   db.prepare('INSERT INTO follows (follower_id, following_id) VALUES (?, ?)').run(req.user.id, targetId);
+
+  // Notification for new follow
+  db.prepare(
+    "INSERT INTO notifications (recipient_id, actor_id, type, target_type, target_id) VALUES (?, ?, 'follow', 'user', ?)"
+  ).run(targetId, req.user.id, req.user.id);
+
   res.json({ following: true });
 });
 

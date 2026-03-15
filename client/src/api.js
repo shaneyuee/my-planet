@@ -35,6 +35,7 @@ export const api = {
   toggleFollow: (id) => request(`/user/${id}/follow`, { method: 'POST' }),
   getFollowStatus: (id) => request(`/user/${id}/follow-status`),
   getRecentUsers: () => request('/user/recent'),
+  searchUsers: (q) => request(`/user/search?q=${encodeURIComponent(q)}`),
 
   // Posts
   createPost: (formData) => request('/posts', { method: 'POST', body: formData }),
@@ -77,4 +78,19 @@ export const api = {
   approveUser: (id, status) => request(`/admin/users/${id}/approve`, { method: 'PUT', body: JSON.stringify({ status }) }),
   getPendingPosts: () => request('/admin/posts'),
   approvePost: (id, status) => request(`/admin/posts/${id}/approve`, { method: 'PUT', body: JSON.stringify({ status }) }),
+
+  // Notifications
+  getNotifications: (page = 1) => request(`/notifications?page=${page}`),
+  getUnreadCount: () => request('/notifications/unread-count'),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PUT' }),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PUT' }),
+
+  // Direct Messages
+  getConversations: () => request('/messages/conversations'),
+  getConversation: (userId, before) => request(`/messages/conversation/${userId}${before ? `?before=${before}` : ''}`),
+  sendDirectMessage: (body) => request('/messages/send', { method: 'POST', body: JSON.stringify(body) }),
+  markConversationRead: (userId) => request(`/messages/conversation/${userId}/read`, { method: 'PUT' }),
+
+  // Search
+  search: (q, page = 1) => request(`/search?q=${encodeURIComponent(q)}&page=${page}`),
 };

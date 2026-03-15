@@ -30,22 +30,37 @@ export default function Home() {
   const [typeFilter, setTypeFilter] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tagSearch, setTagSearch] = useState('');
+  const [searchMode, setSearchMode] = useState(null); // null | 'tag' | 'fulltext'
   const [recentUsers, setRecentUsers] = useState([]);
 
   const fetchPosts = useCallback(() => {
     if (activeTab === 'entrance') return;
     setLoading(true);
     setError(null);
+
+    // Fulltext search mode
+    if (searchMode === 'fulltext' && tagSearch) {
+      api.search(tagSearch, page)
+        .then((data) => {
+          setPosts(data.posts || []);
+          setTotalPages(data.totalPages || 1);
+        })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+      return;
+    }
+
     const sort = activeTab === 'hot' ? 'hot' : 'latest';
     const following = activeTab === 'following' ? true : false;
-    api.getPlaza(page, { sort, type: typeFilter || undefined, tag: tagSearch || undefined, following: following || undefined })
+    const tag = searchMode === 'tag' ? tagSearch : undefined;
+    api.getPlaza(page, { sort, type: typeFilter || undefined, tag, following: following || undefined })
       .then((data) => {
         setPosts(data.posts || []);
         setTotalPages(data.totalPages || 1);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [activeTab, page, typeFilter, tagSearch]);
+  }, [activeTab, page, typeFilter, tagSearch, searchMode]);
 
   const fetchRecentUsers = useCallback(() => {
     if (activeTab !== 'entrance') return;
@@ -76,7 +91,15 @@ export default function Home() {
   };
 
   const handleTagSearch = () => {
-    setTagSearch(tagInput.trim());
+    const val = tagInput.trim();
+    if (!val) return;
+    if (val.startsWith('#')) {
+      setSearchMode('tag');
+      setTagSearch(val.slice(1));
+    } else {
+      setSearchMode('fulltext');
+      setTagSearch(val);
+    }
     setPage(1);
   };
 
@@ -129,7 +152,7 @@ export default function Home() {
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleTagSearch()}
-              placeholder="搜索标签..."
+              placeholder="搜索内容，#标签..."
               className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <button
@@ -140,7 +163,7 @@ export default function Home() {
             </button>
             {tagSearch && (
               <button
-                onClick={() => { setTagInput(''); setTagSearch(''); setPage(1); }}
+                onClick={() => { setTagInput(''); setTagSearch(''); setSearchMode(null); setPage(1); }}
                 className="px-3 py-1.5 text-sm bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
               >
                 清除
@@ -148,7 +171,12 @@ export default function Home() {
             )}
           </div>
           {tagSearch && (
-            <p className="text-xs text-gray-500">当前搜索标签: <span className="text-indigo-600 font-medium">#{tagSearch}</span></p>
+            <p className="text-xs text-gray-500">
+              {searchMode === 'tag'
+                ? <>当前搜索标签: <span className="text-indigo-600 font-medium">#{tagSearch}</span></>
+                : <>搜索: <span className="text-indigo-600 font-medium">{tagSearch}</span></>
+              }
+            </p>
           )}
         </div>
       )}
