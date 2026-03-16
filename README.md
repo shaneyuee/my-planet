@@ -15,7 +15,7 @@
 
 ---
 ## 快捷体验：
-本项目最新版本已经部署到这里，点击可以快速访问：(my-planet.cc)[https://my-planet.cc]
+本项目最新版本已经部署到这里，点击可以快速访问：[my-planet.cc](https://my-planet.cc)
 
 ## 为什么是「我的星球」？
 
