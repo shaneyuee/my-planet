@@ -232,8 +232,12 @@ router.get('/user/:id', authMiddleware, (req, res) => {
 // My memos
 router.get('/memo', authMiddleware, (req, res) => {
   const posts = db.prepare(`
-    SELECT p.*, u.nickname, u.avatar FROM posts p
+    SELECT p.*, u.nickname, u.avatar,
+      ou.nickname as original_nickname, ou.id as original_user_id
+    FROM posts p
     JOIN users u ON p.user_id = u.id
+    LEFT JOIN posts op ON p.original_post_id = op.id
+    LEFT JOIN users ou ON op.user_id = ou.id
     WHERE p.user_id = ? AND p.visibility LIKE '%memo%'
     ORDER BY p.created_at DESC
   `).all(req.user.id);
@@ -269,9 +273,9 @@ router.post('/:id/repost', authMiddleware, (req, res) => {
   const plazaStatus = visibilityStr.includes('plaza') ? 'pending' : null;
 
   const result = db.prepare(`
-    INSERT INTO posts (user_id, type, content, link, link_title, link_description, link_image, images, tags, visibility, plaza_status, original_post_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(req.user.id, original.type, original.content, original.link, original.link_title, original.link_description, original.link_image, original.images, original.tags, visibilityStr, plazaStatus, original.id);
+    INSERT INTO posts (user_id, type, content, link, link_title, link_description, link_image, images, tags, visibility, plaza_status, original_post_id, media_meta)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(req.user.id, original.type, original.content, original.link, original.link_title, original.link_description, original.link_image, original.images, original.tags, visibilityStr, plazaStatus, original.id, original.media_meta || '');
 
   if (visibilityStr.includes('private') && circle_ids) {
     const ids = Array.isArray(circle_ids) ? circle_ids : JSON.parse(circle_ids);

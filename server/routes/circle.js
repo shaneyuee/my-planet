@@ -111,10 +111,13 @@ router.get('/:id/posts', authMiddleware, (req, res) => {
   const posts = db.prepare(`
     SELECT p.*, u.nickname, u.avatar,
       (SELECT COUNT(*) FROM likes WHERE target_type = 'post' AND target_id = p.id AND circle_id = ?) as like_count,
-      (SELECT COUNT(*) FROM comments WHERE post_id = p.id AND circle_id = ?) as comment_count
+      (SELECT COUNT(*) FROM comments WHERE post_id = p.id AND circle_id = ?) as comment_count,
+      ou.nickname as original_nickname, ou.id as original_user_id
     FROM posts p
     JOIN post_circles pc ON pc.post_id = p.id AND pc.circle_id = ?
     JOIN users u ON u.id = p.user_id
+    LEFT JOIN posts op ON p.original_post_id = op.id
+    LEFT JOIN users ou ON op.user_id = ou.id
     WHERE p.hidden = 0
     ORDER BY p.created_at DESC
   `).all(circleId, circleId, circleId);
